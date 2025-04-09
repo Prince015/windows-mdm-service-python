@@ -12,13 +12,13 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-@app.route("/lock", methods=[POST])
+@app.route("/lock", methods=["POST"])
 def api_lock():
     lock_workstation()
     return jsonify({"status": "locked"})
 
 
-@app.route("/shutdown", methods=[POST])
+@app.route("/shutdown", methods=["POST"])
 def api_shutdown():
     shutdown_system()
     return jsonify({"status": "shutdown initiated"})
