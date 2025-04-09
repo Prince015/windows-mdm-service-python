@@ -1,0 +1,31 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+venv/
+
+# Flask/Python logs
+*.log
+*.sqlite3
+*.db
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE/editor folders
+.vscode/
+.idea/
+
+# Cache
+*.cache
+*.pid
+
+# Environment/config files
+.env
+config/settings.json
+
+# Screenshots & runtime data
+data/screenshots/
