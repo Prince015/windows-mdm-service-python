@@ -1,56 +1,45 @@
 import os
 import logging
 
-HOSTS_PATH = r"C:\\Windows\\System32\\drivers\\etc\\hosts"
+HOSTS_PATH = r"C:\Windows\System32\drivers\etc\hosts"
 REDIRECT_IP = "127.0.0.1"
 
 
-def read_blocked_sites():
+def read_blocked_websites():
+    blocked = []
     try:
-        if not os.path.exists("config/settings.json"):
-            return []
-        import json
-        with open("config/settings.json", "r") as f:
-            settings = json.load(f)
-            return settings.get("blocked_websites", [])
+        with open(HOSTS_PATH, "r") as file:
+            for line in file:
+                if line.startswith(REDIRECT_IP):
+                    parts = line.strip().split()
+                    if len(parts) > 1:
+                        blocked.append(parts[1])
     except Exception as e:
-        logging.error(f"Error reading blocked websites: {e}")
-        return []
+        logging.error(f"Failed to read hosts file: {e}")
+    return blocked
 
 
-def block_websites():
-    sites_to_block = read_blocked_sites()
-    if not sites_to_block:
-        return
-
+def block_websites(websites):
     try:
-        with open(HOSTS_PATH, "r+") as file:
-            content = file.read()
-            for site in sites_to_block:
-                entry = f"{REDIRECT_IP} {site}"
-                if entry not in content:
-                    file.write(f"\n{entry}")
-        logging.info("Blocked websites successfully updated.")
-    except PermissionError:
-        logging.error("Permission denied: Run as Administrator to modify hosts file.")
+        with open(HOSTS_PATH, "a") as file:
+            for site in websites:
+                file.write(f"{REDIRECT_IP} {site}\n")
+        logging.info(f"Blocked websites: {websites}")
     except Exception as e:
-        logging.error(f"Error updating hosts file: {e}")
+        logging.error(f"Failed to block websites: {e}")
 
 
-def unblock_websites():
+def unblock_websites(websites):
     try:
-        sites_to_block = read_blocked_sites()
-        if not sites_to_block:
+        if not os.path.exists(HOSTS_PATH):
             return
-
         with open(HOSTS_PATH, "r") as file:
             lines = file.readlines()
 
         with open(HOSTS_PATH, "w") as file:
             for line in lines:
-                if not any(site in line for site in sites_to_block):
+                if not any(line.strip().endswith(site) and line.startswith(REDIRECT_IP) for site in websites):
                     file.write(line)
-
-        logging.info("Unblocked websites successfully.")
+        logging.info(f"Unblocked websites: {websites}")
     except Exception as e:
-        logging.error(f"Error unblocking websites: {e}")
+        logging.error(f"Failed to unblock websites: {e}")
