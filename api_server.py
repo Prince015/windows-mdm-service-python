@@ -70,7 +70,7 @@ def api_unblock_websites():
 
 
 @app.route("/apps/enforce", methods=["POST"])
-def api_block_apps():
+def api_enforce_apps():
     block_and_limit_apps()
     return jsonify({"status": "app rules enforced"})
 
