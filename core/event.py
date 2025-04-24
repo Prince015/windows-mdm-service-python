@@ -1,0 +1,26 @@
+from datetime import datetime, timedelta
+
+
+class Event:
+    def __init__(self, timestamp, app_name, window_title, pid, duration=timedelta(seconds=0)):
+        self.timestamp = timestamp
+        self.app_name = app_name
+        self.window_title = window_title
+        self.pid = pid
+        self.duration = duration
+
+    def to_row(self):
+        return (
+            self.timestamp.isoformat(timespec='seconds'),
+            self.app_name,
+            self.window_title,
+            self.pid,
+            int(self.duration.total_seconds())
+        )
+
+    def is_equivalent(self, other):
+        return (
+            self.app_name == other.app_name and
+            self.window_title == other.window_title and
+            self.pid == other.pid
+        )

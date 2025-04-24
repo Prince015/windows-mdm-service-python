@@ -1,12 +1,13 @@
 import win32gui
 import win32process
 import psutil
-import time
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
+from .event import Event
 
 DB_PATH = os.path.join("data", "usage.db")
+last_event = None
 
 
 def get_active_window_info():
@@ -17,7 +18,7 @@ def get_active_window_info():
         app_name = process.name()
         window_title = win32gui.GetWindowText(hwnd)
         return app_name, window_title, pid
-    except Exception as e:
+    except Exception:
         return None, None, None
 
 
@@ -31,30 +32,61 @@ def init_db():
             timestamp TEXT,
             app_name TEXT,
             window_title TEXT,
-            pid INTEGER
+            pid INTEGER,
+            duration INTEGER
         )
     ''')
     conn.commit()
     conn.close()
 
 
-def log_app_usage(app_name, window_title, pid):
+def track_active_app(pulsetime=11):
+    pulsetime = timedelta(seconds=pulsetime)
+    global last_event
+
+    app_name, window_title, pid = get_active_window_info()
+    if not app_name:
+        return
+
+    now = datetime.now()
+    current_event = Event(now, app_name, window_title, pid)
+
+    if last_event and last_event.is_equivalent(current_event):
+        end_of_last = last_event.timestamp + last_event.duration
+        if now <= end_of_last + pulsetime:
+            last_event.duration = max(
+                last_event.duration,
+                now - last_event.timestamp
+            )
+            replace_last_event(last_event)
+            return
+
+    current_event.duration = timedelta(seconds=0)
+    insert_event(current_event)
+    last_event = current_event
+
+
+def replace_last_event(event: Event):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    timestamp = datetime.now().isoformat(timespec='seconds')
     cursor.execute('''
-        INSERT INTO app_usage (timestamp, app_name, window_title, pid)
-        VALUES (?, ?, ?, ?)
-    ''', (timestamp, app_name, window_title, pid))
+        UPDATE app_usage
+        SET timestamp=?, app_name=?, window_title=?, pid=?, duration=?
+        WHERE id=(SELECT MAX(id) FROM app_usage)
+    ''', event.to_row())
     conn.commit()
     conn.close()
 
 
-def track_active_app():
-    app_name, window_title, pid = get_active_window_info()
-    if app_name:
-        log_app_usage(app_name, window_title, pid)
+def insert_event(event: Event):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO app_usage (timestamp, app_name, window_title, pid, duration)
+        VALUES (?, ?, ?, ?, ?)
+    ''', event.to_row())
+    conn.commit()
+    conn.close()
 
 
-# Initialize DB on module import
 init_db()

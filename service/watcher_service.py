@@ -1,7 +1,8 @@
 import time
 import logging
 
-from core import app_monitor, system_control, heartbeat
+from core import app_monitor, heartbeat
+
 
 class WatcherService:
     def __init__(self):
@@ -17,7 +18,7 @@ class WatcherService:
         while self.running:
             try:
                 # Track current app usage
-                app_monitor.track_active_app()
+                app_monitor.track_active_app(pulsetime=11)
 
                 # Every heartbeat_interval seconds, send heartbeat
                 if time.time() - self.last_heartbeat >= self.heartbeat_interval:
