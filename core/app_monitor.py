@@ -4,10 +4,12 @@ import psutil
 import os
 import sqlite3
 from datetime import datetime, timedelta
-from .event import Event
+from core.event import Event
+from core.browser_history.utils import get_browser_handler
 
 DB_PATH = os.path.join("data", "usage.db")
 last_event = None
+url_attempts = 0  # Track attempts to fetch URL for same event
 
 
 def get_active_window_info():
@@ -33,7 +35,8 @@ def init_db():
             app_name TEXT,
             window_title TEXT,
             pid INTEGER,
-            duration INTEGER
+            duration INTEGER,
+            url TEXT
         )
     ''')
     conn.commit()
@@ -41,8 +44,8 @@ def init_db():
 
 
 def track_active_app(pulsetime=11):
+    global last_event, url_attempts
     pulsetime = timedelta(seconds=pulsetime)
-    global last_event
 
     app_name, window_title, pid = get_active_window_info()
     if not app_name:
@@ -51,6 +54,7 @@ def track_active_app(pulsetime=11):
     now = datetime.now()
     current_event = Event(now, app_name, window_title, pid)
 
+    matched_url = None
     if last_event and last_event.is_equivalent(current_event):
         end_of_last = last_event.timestamp + last_event.duration
         if now <= end_of_last + pulsetime:
@@ -58,10 +62,29 @@ def track_active_app(pulsetime=11):
                 last_event.duration,
                 now - last_event.timestamp
             )
+
+            if not last_event.url and url_attempts < 5:
+                handler = get_browser_handler(app_name)
+                if handler:
+                    matched_url = handler.match_event(current_event)
+                    if matched_url:
+                        last_event.url = matched_url
+                    url_attempts += 1
+                else:
+                    url_attempts += 1
+
             replace_last_event(last_event)
             return
 
+    # New event
     current_event.duration = timedelta(seconds=0)
+    handler = get_browser_handler(app_name)
+    if handler:
+        matched_url = handler.match_event(current_event)
+        if matched_url:
+            current_event.url = matched_url
+    url_attempts = 1 if not matched_url else 0
+
     insert_event(current_event)
     last_event = current_event
 
@@ -71,7 +94,7 @@ def replace_last_event(event: Event):
     cursor = conn.cursor()
     cursor.execute('''
         UPDATE app_usage
-        SET timestamp=?, app_name=?, window_title=?, pid=?, duration=?
+        SET timestamp=?, app_name=?, window_title=?, pid=?, duration=?, url=?
         WHERE id=(SELECT MAX(id) FROM app_usage)
     ''', event.to_row())
     conn.commit()
@@ -82,8 +105,8 @@ def insert_event(event: Event):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO app_usage (timestamp, app_name, window_title, pid, duration)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO app_usage (timestamp, app_name, window_title, pid, duration, url)
+        VALUES (?, ?, ?, ?, ?, ?)
     ''', event.to_row())
     conn.commit()
     conn.close()

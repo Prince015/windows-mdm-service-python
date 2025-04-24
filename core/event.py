@@ -1,13 +1,13 @@
 from datetime import datetime, timedelta
 
-
 class Event:
-    def __init__(self, timestamp, app_name, window_title, pid, duration=timedelta(seconds=0)):
+    def __init__(self, timestamp, app_name, window_title, pid, duration=timedelta(seconds=0), url=None):
         self.timestamp = timestamp
         self.app_name = app_name
         self.window_title = window_title
         self.pid = pid
         self.duration = duration
+        self.url = url
 
     def to_row(self):
         return (
@@ -15,7 +15,8 @@ class Event:
             self.app_name,
             self.window_title,
             self.pid,
-            int(self.duration.total_seconds())
+            int(self.duration.total_seconds()),
+            self.url
         )
 
     def is_equivalent(self, other):
