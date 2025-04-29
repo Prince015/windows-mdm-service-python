@@ -9,7 +9,7 @@ from core.app_management import block_and_limit_apps, get_installed_apps
 from core.heartbeat import send_heartbeat
 from core.app_block_using_driver import block_apps, unblock_apps, get_all_blocked_apps, unblock_all_apps
 from core.app_monitor import get_all_app_usage_today
-from core.app_block_policy import add_app_block_rule, remove_app_block_rule
+from core.app_block_policy import add_app_block_rule, remove_app_block_rule, get_app_block_rules
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -193,6 +193,16 @@ def api_remove_app_block_rule():
 
     res = remove_app_block_rule(app_name)
     return jsonify(res)
+
+@app.route("/get-app-block-rule", methods=["GET"])
+def api_get_app_block_rules():
+    """Get list of app bloking rules"""
+    data = get_app_block_rules()
+    return jsonify({
+        "status": "success",
+        "data": data,
+        "count": len(data)
+    })
 
 
 if __name__ == "__main__":
