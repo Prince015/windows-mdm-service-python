@@ -112,4 +112,56 @@ def insert_event(event: Event):
     conn.close()
 
 
+def get_app_usage_today(app_name):
+    """Get total usage time for an app today from the app_usage table"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    today = datetime.now().strftime('%Y-%m-%d')
+
+    try:
+        cursor.execute("""
+            SELECT SUM(duration) FROM app_usage 
+            WHERE app_name = ? AND timestamp LIKE ?
+        """, (app_name, f"{today}%"))
+
+        result = cursor.fetchone()[0]
+        conn.close()
+
+        if result:
+            return int(result)
+        return 0
+    except sqlite3.Error as e:
+        print(f"Database error getting app usage: {str(e)}")
+        conn.close()
+        return 0
+
+
+def get_all_app_usage_today():
+    """Get total usage time for all apps today from the app_usage table"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    today = datetime.now().strftime('%Y-%m-%d')
+
+    try:
+        cursor.execute("""
+            SELECT app_name, SUM(duration) FROM app_usage 
+            WHERE timestamp LIKE ?
+            GROUP BY app_name
+        """, (f"{today}%",))
+
+        results = cursor.fetchall()
+        conn.close()
+
+        usage_dict = {app: int(duration)
+                      for app, duration in results if duration}
+        return usage_dict
+
+    except sqlite3.Error as e:
+        print(f"Database error getting all app usage: {str(e)}")
+        conn.close()
+        return {}
+
+
 init_db()

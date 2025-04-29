@@ -340,4 +340,38 @@ def block_apps(app_names):
         return {"status": "error", "message": f"Error blocking apps: {str(e)}"}
 
 
+def set_blocked_apps(app_names):
+    """Set the entire list of blocked apps, replacing any existing blocked apps"""
+    try:
+        app_names = list(set(app_names or []))
+        current_blocked = get_all_blocked_apps()
+
+        driver_result = send_app_list_to_block(app_names)
+        if driver_result["status"] != "success":
+            return {"status": "error", "message": f"Driver update failed: {driver_result['message']}"}
+
+        db_remove_result = remove_apps_from_block_db(current_blocked)
+        if db_remove_result["status"] != "success":
+            return {
+                "status": "partial",
+                "message": f"Driver updated, but failed to clear DB: {db_remove_result['message']}"
+            }
+
+        db_add_result = add_apps_to_block_db(app_names)
+        if db_add_result["status"] == "success":
+            return {
+                "status": "success",
+                "message": f"Set {len(app_names)} apps as blocked",
+                "blocked_apps": app_names
+            }
+        else:
+            return {
+                "status": "partial",
+                "message": f"Driver updated, but DB write failed: {db_add_result['message']}"
+            }
+
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to set blocked apps: {str(e)}"}
+
+
 init_app_block_db()
