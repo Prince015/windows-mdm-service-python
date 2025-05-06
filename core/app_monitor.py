@@ -3,6 +3,7 @@ import win32process
 import psutil
 import os
 import sqlite3
+import winreg
 from datetime import datetime, timedelta
 from core.event import Event
 from core.browser_history.utils import get_browser_handler
@@ -17,11 +18,40 @@ def get_active_window_info():
         hwnd = win32gui.GetForegroundWindow()
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
         process = psutil.Process(pid)
-        app_name = process.name()
+        app_exe_path = process.exe()
+        app_process_name = process.name()
+        app_name = get_friendly_app_name(app_exe_path) or app_process_name
         window_title = win32gui.GetWindowText(hwnd)
-        return app_name, window_title, pid
+        return app_process_name, app_name, window_title, pid
     except Exception:
         return None, None, None
+
+
+def get_friendly_app_name(exe_path: str) -> str | None:
+    uninstall_keys = [
+        r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+        r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+    ]
+
+    for root in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+        for subkey in uninstall_keys:
+            try:
+                with winreg.OpenKey(root, subkey) as key:
+                    for i in range(winreg.QueryInfoKey(key)[0]):
+                        try:
+                            subkey_name = winreg.EnumKey(key, i)
+                            with winreg.OpenKey(key, subkey_name) as app_key:
+                                display_name = winreg.QueryValueEx(
+                                    app_key, "DisplayName")[0]
+                                install_location = winreg.QueryValueEx(app_key, "InstallLocation")[0] if "InstallLocation" in [
+                                    winreg.EnumValue(app_key, j)[0] for j in range(winreg.QueryInfoKey(app_key)[1])] else ""
+                                if install_location and exe_path.lower().startswith(install_location.lower()):
+                                    return display_name
+                        except (FileNotFoundError, OSError, PermissionError):
+                            continue
+            except FileNotFoundError:
+                continue
+    return None
 
 
 def init_db():
@@ -32,6 +62,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS app_usage (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT,
+            app_process_name TEXT,
             app_name TEXT,
             window_title TEXT,
             pid INTEGER,
@@ -47,12 +78,12 @@ def track_active_app(pulsetime=11):
     global last_event, url_attempts
     pulsetime = timedelta(seconds=pulsetime)
 
-    app_name, window_title, pid = get_active_window_info()
+    app_process_name, app_name, window_title, pid = get_active_window_info()
     if not app_name:
         return
 
     now = datetime.now()
-    current_event = Event(now, app_name, window_title, pid)
+    current_event = Event(now, app_process_name, app_name, window_title, pid)
 
     matched_url = None
     if last_event and last_event.is_equivalent(current_event):
@@ -64,7 +95,7 @@ def track_active_app(pulsetime=11):
             )
 
             if not last_event.url and url_attempts < 5:
-                handler = get_browser_handler(app_name)
+                handler = get_browser_handler(app_process_name)
                 if handler:
                     matched_url = handler.match_event(current_event)
                     if matched_url:
@@ -78,7 +109,7 @@ def track_active_app(pulsetime=11):
 
     # New event
     current_event.duration = timedelta(seconds=0)
-    handler = get_browser_handler(app_name)
+    handler = get_browser_handler(app_process_name)
     if handler:
         matched_url = handler.match_event(current_event)
         if matched_url:
@@ -94,7 +125,7 @@ def replace_last_event(event: Event):
     cursor = conn.cursor()
     cursor.execute('''
         UPDATE app_usage
-        SET timestamp=?, app_name=?, window_title=?, pid=?, duration=?, url=?
+        SET timestamp=?, app_process_name=?, app_name=?, window_title=?, pid=?, duration=?, url=?
         WHERE id=(SELECT MAX(id) FROM app_usage)
     ''', event.to_row())
     conn.commit()
@@ -105,14 +136,14 @@ def insert_event(event: Event):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO app_usage (timestamp, app_name, window_title, pid, duration, url)
+        INSERT INTO app_usage (timestamp, app_process_name, app_name, window_title, pid, duration, url)
         VALUES (?, ?, ?, ?, ?, ?)
     ''', event.to_row())
     conn.commit()
     conn.close()
 
 
-def get_app_usage_today(app_name):
+def get_app_usage_today(app_process_name):
     """Get total usage time for an app today from the app_usage table"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -122,8 +153,8 @@ def get_app_usage_today(app_name):
     try:
         cursor.execute("""
             SELECT SUM(duration) FROM app_usage 
-            WHERE app_name = ? AND timestamp LIKE ?
-        """, (app_name, f"{today}%"))
+            WHERE app_process_name = ? AND timestamp LIKE ?
+        """, (app_process_name, f"{today}%"))
 
         result = cursor.fetchone()[0]
         conn.close()
@@ -146,9 +177,9 @@ def get_all_app_usage_today():
 
     try:
         cursor.execute("""
-            SELECT app_name, SUM(duration) FROM app_usage 
+            SELECT app_process_name, SUM(duration) FROM app_usage 
             WHERE timestamp LIKE ?
-            GROUP BY app_name
+            GROUP BY app_process_name
         """, (f"{today}%",))
 
         results = cursor.fetchall()
