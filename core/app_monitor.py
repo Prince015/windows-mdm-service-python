@@ -138,7 +138,7 @@ def insert_event(event: Event):
     cursor = conn.cursor()
     cursor.execute('''
         INSERT INTO app_usage (timestamp, app_process_name, app_name, window_title, pid, duration, url)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     ''', event.to_row())
     conn.commit()
     conn.close()
