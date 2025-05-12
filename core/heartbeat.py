@@ -2,13 +2,13 @@ import logging
 import os
 import sqlite3
 from datetime import datetime
-from config.config import USAGE_DB_PATH
+from config.config import USAGE_DB_PATH, DATA_DIR
 
 DB_PATH = USAGE_DB_PATH
 
 
 def init_heartbeat_table():
-    os.makedirs("data", exist_ok=True)
+    os.makedirs(DATA_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('''

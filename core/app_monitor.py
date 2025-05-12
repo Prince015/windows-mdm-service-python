@@ -7,7 +7,7 @@ import winreg
 from datetime import datetime, timedelta
 from core.event import Event
 from core.browser_history.utils import get_browser_handler
-from config.config import USAGE_DB_PATH
+from config.config import USAGE_DB_PATH, DATA_DIR
 
 DB_PATH = USAGE_DB_PATH
 last_event = None
@@ -56,7 +56,7 @@ def get_friendly_app_name(exe_path: str) -> str | None:
 
 
 def init_db():
-    os.makedirs("data", exist_ok=True)
+    os.makedirs(DATA_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('''

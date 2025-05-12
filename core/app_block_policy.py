@@ -216,7 +216,7 @@ def get_formatted_app_rules():
 
 def init_app_block_db():
     """Initialize the SQLite database for app blocking"""
-    os.makedirs("data", exist_ok=True)
+    os.makedirs(DATA_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
