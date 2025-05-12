@@ -3,9 +3,10 @@ from ctypes import wintypes
 import os
 import sqlite3
 from datetime import datetime
+from config.config import DATA_DIR
 
 #db path
-DB_PATH = os.path.join("data", "app_block.db")
+DB_PATH = os.path.join(DATA_DIR, "app_block.db")
 
 # Constants
 FILE_DEVICE_UNKNOWN = 0x00000022

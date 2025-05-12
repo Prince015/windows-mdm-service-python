@@ -4,12 +4,12 @@ import logging
 from datetime import datetime
 from core.app_block_using_driver import set_blocked_apps, get_all_blocked_apps, DB_PATH
 from core.app_monitor import get_app_usage_today
-
+from config.config import DATA_DIR
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename=os.path.join("data", "app_block_policy.log")
+    filename=os.path.join(DATA_DIR, "app_block_policy.log")
 )
 logger = logging.getLogger('app_block_policy')
 

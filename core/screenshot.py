@@ -2,8 +2,9 @@ import os
 import logging
 from datetime import datetime
 from PIL import ImageGrab
+from config.config import DATA_DIR
 
-SCREENSHOT_DIR = os.path.join("data", "screenshots")
+SCREENSHOT_DIR = os.path.join(DATA_DIR, "screenshots")
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
 

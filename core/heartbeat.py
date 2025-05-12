@@ -2,8 +2,9 @@ import logging
 import os
 import sqlite3
 from datetime import datetime
+from config.config import USAGE_DB_PATH
 
-DB_PATH = os.path.join("data", "usage.db")
+DB_PATH = USAGE_DB_PATH
 
 
 def init_heartbeat_table():

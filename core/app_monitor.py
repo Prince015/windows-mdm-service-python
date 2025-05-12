@@ -7,8 +7,9 @@ import winreg
 from datetime import datetime, timedelta
 from core.event import Event
 from core.browser_history.utils import get_browser_handler
+from config.config import USAGE_DB_PATH
 
-DB_PATH = os.path.join("data", "usage.db")
+DB_PATH = USAGE_DB_PATH
 last_event = None
 url_attempts = 0  # Track attempts to fetch URL for same event
 
