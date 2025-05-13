@@ -8,10 +8,14 @@ from datetime import datetime, timedelta
 from core.event import Event
 from core.browser_history.utils import get_browser_handler
 from config.config import USAGE_DB_PATH, DATA_DIR
+from utils.image_extract import extract_icon_from_exe
+from service.cache import Cache
 
 DB_PATH = USAGE_DB_PATH
 last_event = None
 url_attempts = 0  # Track attempts to fetch URL for same event
+
+app_name_and_icon_cache = Cache()
 
 
 def get_active_window_info():
@@ -19,11 +23,22 @@ def get_active_window_info():
         hwnd = win32gui.GetForegroundWindow()
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
         process = psutil.Process(pid)
+        window_title = win32gui.GetWindowText(hwnd)
         app_exe_path = process.exe()
         app_process_name = process.name()
+        cached_info = app_name_and_icon_cache.get(app_exe_path)
+        if cached_info:
+            app_name, app_icon = cached_info
+            return app_process_name, app_name, window_title, pid, app_icon
         app_name = get_friendly_app_name(app_exe_path) or app_process_name
-        window_title = win32gui.GetWindowText(hwnd)
-        return app_process_name, app_name, window_title, pid
+        app_icon_path = f"{DATA_DIR}/icons/{app_name}.ico"
+        app_icon = None
+        if os.path.exists(app_icon_path):
+            app_icon = app_icon_path
+        else:
+            app_icon = extract_icon_from_exe(app_exe_path, app_icon_path)
+        app_name_and_icon_cache.set(app_exe_path, (app_name, app_icon), 3600)
+        return app_process_name, app_name, window_title, pid, app_icon
     except Exception:
         return None, None, None
 
@@ -67,6 +82,7 @@ def init_db():
             app_name TEXT,
             window_title TEXT,
             pid INTEGER,
+            app_icon TEXT,
             duration INTEGER,
             url TEXT
         )
@@ -79,12 +95,12 @@ def track_active_app(pulsetime=11):
     global last_event, url_attempts
     pulsetime = timedelta(seconds=pulsetime)
 
-    app_process_name, app_name, window_title, pid = get_active_window_info()
+    app_process_name, app_name, window_title, pid, app_icon = get_active_window_info()
     if not app_name:
         return
 
     now = datetime.now()
-    current_event = Event(now, app_process_name, app_name, window_title, pid)
+    current_event = Event(now, app_process_name, app_name, window_title, pid, app_icon)
 
     matched_url = None
     if last_event and last_event.is_equivalent(current_event):
@@ -126,7 +142,7 @@ def replace_last_event(event: Event):
     cursor = conn.cursor()
     cursor.execute('''
         UPDATE app_usage
-        SET timestamp=?, app_process_name=?, app_name=?, window_title=?, pid=?, duration=?, url=?
+        SET timestamp=?, app_process_name=?, app_name=?, window_title=?, pid=?, app_icon=?, duration=?, url=?
         WHERE id=(SELECT MAX(id) FROM app_usage)
     ''', event.to_row())
     conn.commit()
@@ -137,8 +153,8 @@ def insert_event(event: Event):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO app_usage (timestamp, app_process_name, app_name, window_title, pid, duration, url)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO app_usage (timestamp, app_process_name, app_name, window_title, pid, app_icon, duration, url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ''', event.to_row())
     conn.commit()
     conn.close()

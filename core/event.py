@@ -1,12 +1,14 @@
 from datetime import datetime, timedelta
 
+
 class Event:
-    def __init__(self, timestamp, app_process_name, app_name, window_title, pid, duration=timedelta(seconds=0), url=None):
+    def __init__(self, timestamp, app_process_name, app_name, window_title, pid, app_icon, duration=timedelta(seconds=0), url=None):
         self.timestamp = timestamp
         self.app_process_name = app_process_name
         self.app_name = app_name
         self.window_title = window_title
         self.pid = pid
+        self.app_icon = app_icon
         self.duration = duration
         self.url = url
 
@@ -17,6 +19,7 @@ class Event:
             self.app_name,
             self.window_title,
             self.pid,
+            self.app_icon,
             int(self.duration.total_seconds()),
             self.url
         )
