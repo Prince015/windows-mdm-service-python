@@ -17,6 +17,8 @@ url_attempts = 0  # Track attempts to fetch URL for same event
 
 app_name_and_icon_cache = Cache()
 
+ICONS_DIR = os.path.join(DATA_DIR, "icons")
+os.makedirs(ICONS_DIR, exist_ok=True)
 
 def get_active_window_info():
     try:
@@ -31,7 +33,7 @@ def get_active_window_info():
             app_name, app_icon = cached_info
             return app_process_name, app_name, window_title, pid, app_icon
         app_name = get_friendly_app_name(app_exe_path) or app_process_name
-        app_icon_path = f"{DATA_DIR}/icons/{app_name}.ico"
+        app_icon_path = f"{ICONS_DIR}/{app_name}.ico"
         app_icon = None
         if os.path.exists(app_icon_path):
             app_icon = app_icon_path
